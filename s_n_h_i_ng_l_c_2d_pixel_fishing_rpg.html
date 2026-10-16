@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sơn Hải Ngư Lục - 2D Pixel Fishing RPG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&family=Be+Vietnam+Pro:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --pixel-border: #3b2718;
+            --pixel-gold: #f5c542;
+            --pixel-jade: #2dd4bf;
+            --panel-bg: #1e1826;
+            --panel-inner: #2b2336;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b0914;
+            color: #f8fafc;
+            font-family: 'Be Vietnam Pro', sans-serif;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+        }
+
+        .font-pixel-title {
+            font-family: 'VT323', monospace;
+            letter-spacing: 1px;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .pixel-box {
+            background: var(--panel-bg);
+            border: 3px solid #6e5239;
+            box-shadow: 
+                inset 0 0 0 2px #261b2e,
+                0 6px 0 #120d17,
+                0 8px 20px rgba(0,0,0,0.65);
+            border-radius: 8px;
+        }
+
+        .pixel-btn {
+            position: relative;
+            border: 3px solid #291d12;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.35), 0 4px 0 #140e09;
+            transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .pixel-btn:hover {
+            filter: brightness(1.08);
+        }
+
+        .pixel-btn:active, .pixel-btn.active-press {
+            transform: translateY(3px);
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.35), 0 1px 0 #140e09;
+        }
+
+        .rarity-common { color: #cbd5e1; border-color: #64748b; background: rgba(51, 65, 85, 0.5); }
+        .rarity-spirit { color: #4ade80; border-color: #22c55e; background: rgba(20, 83, 45, 0.5); }
+        .rarity-earth  { color: #38bdf8; border-color: #0ea5e9; background: rgba(12, 74, 110, 0.5); }
+        .rarity-heaven { color: #c084fc; border-color: #a855f7; background: rgba(88, 28, 135, 0.5); }
+        .rarity-mythic { color: #fbbf24; border-color: #f59e0b; background: rgba(120, 53, 15, 0.65); animation: pulseGlow 2s infinite; }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 8px rgba(251, 191, 36, 0.45); }
+            50% { box-shadow: 0 0 18px rgba(251, 191, 36, 0.85); }
+        }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .animate-float {
+            animation: floatSlow 2.2s ease-in-out infinite;
+        }
+
+        /* Custom scrollbar for modals */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #16111d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #57412d;
+            border-radius: 4px;
+            border: 1px solid #8c6a4a;
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between relative bg-[#0b0914]">
+
+    <header class="w-full z-20 px-2 sm:px-4 pt-2 pointer-events-none">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- Player Status & Level Card -->
+            <div class="pixel-box px-3 py-2 flex items-center gap-3 pointer-events-auto">
+                <div class="relative w-11 h-11 rounded bg-[#14101c] border-2 border-amber-500/80 flex items-center justify-center shrink-0">
+                    <span class="text-2xl">👒</span>
+                    <span id="hud-level-badge" class="absolute -bottom-1.5 -right-1.5 bg-amber-500 text-slate-950 font-extrabold text-[11px] px-1.5 py-0.5 rounded border border-slate-900">
+                        Lv.1
+                    </span>
+                </div>
+                <div class="min-w-[140px] sm:min-w-[180px]">
+                    <div class="flex items-center justify-between text-xs sm:text-sm font-bold">
+                        <span id="hud-title" class="text-amber-300">Tân Thủ Ngư Phu</span>
+                        <span id="hud-gold" class="text-yellow-400 flex items-center gap-1 ml-2">
+                            <i class="fa-solid fa-coins text-xs"></i> <span>50</span>
+                        </span>
+                    </div>
+                    <!-- EXP Bar -->
+                    <div class="w-full h-3 bg-slate-950 rounded-full border border-slate-700 mt-1 overflow-hidden relative">
+                        <div id="hud-exp-bar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300 transition-all duration-300" style="width: 0%"></div>
+                        <span id="hud-exp-text" class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white drop-shadow">0 / 100 EXP</span>
+                    </div>
+                    <!-- Equipped Rod & Bait -->
+                    <div class="flex items-center gap-2 mt-1 text-[11px] text-slate-300">
+                        <span id="hud-rod-name" class="text-teal-300 font-semibold truncate">🎣 Cần Trúc Thanh Vân</span>
+                        <span>•</span>
+                        <span id="hud-bait-count" class="text-amber-200 font-semibold">🪱 Mồi Thường (∞)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Realm & Quick Top Buttons -->
+            <div class="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                <button onclick="openModal('realmModal')" class="pixel-btn bg-indigo-900/90 hover:bg-indigo-800 text-indigo-100 px-3 py-2 text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-compass text-amber-400"></i>
+                    <span id="hud-realm-name">Đông Hải Bích Thủy</span>
+                </button>
+                <button onclick="openModal('bestiaryModal')" class="pixel-btn bg-amber-800/90 hover:bg-amber-700 text-amber-100 px-3 py-2 text-xs sm:text-sm font-bold flex items-center gap-1.5" title="Sơn Hải Đồ Giám">
+                    <i class="fa-solid fa-book-journal-whills text-yellow-300"></i>
+                    <span class="hidden md:inline">Đồ Giám</span>
+                    <span id="hud-bestiary-count" class="bg-black/40 px-1.5 py-0.5 rounded text-[11px]">0/16</span>
+                </button>
+                <button onclick="toggleAudio()" id="btn-audio" class="pixel-btn bg-slate-800 text-slate-200 w-9 h-9 flex items-center justify-center text-sm" title="Bật/Tắt Âm Thanh">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="openModal('helpModal')" class="pixel-btn bg-slate-800 text-amber-300 w-9 h-9 flex items-center justify-center text-sm" title="Hướng dẫn">
+                    <i class="fa-solid fa-circle-question"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Contextual Floating Interaction Prompt -->
+        <div id="context-prompt" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            <div class="pixel-box px-4 py-1.5 bg-slate-900/95 border-amber-400 text-amber-200 text-xs sm:text-sm font-bold flex items-center gap-2 animate-bounce">
+                <span id="context-prompt-icon">💬</span>
+                <span id="context-prompt-text">Nhấn [E] hoặc nút Cửa Hàng để gặp Lão Ngư Ông</span>
+            </div>
+        </div>
+
+        <!-- Toast Notification Stack -->
+        <div id="toast-container" class="absolute top-14 right-3 z-30 flex flex-col gap-2 pointer-events-none max-w-xs"></div>
+
+        <div id="fishing-minigame" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4">
+            <div class="pixel-box w-full max-w-md p-4 sm:p-5 bg-[#1a1524] border-amber-500/90 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span id="mini-fish-rarity-badge" class="text-xs font-extrabold px-2 py-0.5 rounded border rarity-common">Linh Phẩm</span>
+                        <span id="mini-fish-hint" class="text-sm font-bold text-amber-300">Thủy quái đang cắn câu!</span>
+                    </div>
+                    <span class="text-xs text-slate-400">Giữ hoặc Nhấp nút KÉO</span>
+                </div>
+
+                <!-- Catch Progress Bar (Starts generous & fills quickly) -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold mb-1">
+                        <span class="text-teal-300">⚡ Linh Lực Thuần Hóa</span>
+                        <span id="mini-progress-pct" class="text-amber-300">40%</span>
+                    </div>
+                    <div class="w-full h-4 bg-slate-950 rounded-full border-2 border-slate-700 overflow-hidden p-0.5">
+                        <div id="mini-progress-bar" class="h-full bg-gradient-to-r from-amber-500 via-emerald-400 to-cyan-300 rounded-full transition-all duration-75" style="width: 40%"></div>
+                    </div>
+                </div>
+
+                <!-- Horizontal Tension Track (Green Zone + Fish Icon) -->
+                <div class="relative w-full h-14 bg-[#0d1726] rounded-lg border-2 border-cyan-800 overflow-hidden shadow-inner flex items-center">
+                    <!-- Water wave pattern inside track -->
+                    <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:12px_12px]"></div>
+
+                    <!-- Player Catch Zone (Wide Green/Jade Bar) -->
+                    <div id="mini-catch-zone" class="absolute top-1 bottom-1 rounded-md bg-emerald-400/35 border-2 border-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.6)] flex items-center justify-center transition-colors" style="left: 20%; width: 32%;">
+                        <span class="text-[10px] font-extrabold text-emerald-200 uppercase tracking-wider opacity-80">Vùng Thuần Hóa</span>
+                    </div>
+
+                    <!-- Target Mythical Fish Marker -->
+                    <div id="mini-fish-marker" class="absolute top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-2xl transition-transform" style="left: 30%;">
+                        🐟
+                    </div>
+                </div>
+
+                <p class="text-center text-xs text-slate-300">
+                    💡 <span class="text-amber-300 font-semibold">Mẹo dễ câu:</span> Nhấn giữ nút <b>KÉO CẦN (hoặc phím SPACE)</b> để đẩy thanh ngọc sang phải, thả ra để lùi sang trái sao cho trùng với biểu tượng cá!
+                </p>
+
+                <!-- Big Accessible Reel Button for Touch & Mouse -->
+                <div class="flex gap-2 mt-1">
+                    <button id="btn-reel-hold" 
+                        class="pixel-btn flex-1 py-3.5 bg-gradient-to-b from-emerald-500 to-teal-700 text-slate-950 font-extrabold text-base sm:text-lg tracking-wide flex items-center justify-center gap-2 select-none">
+                        <i class="fa-solid fa-hand-fist"></i> GIỮ ĐỂ KÉO CẦN (SPACE)
+                    </button>
+                    <button onclick="cancelFishing()" class="pixel-btn px-4 py-3.5 bg-rose-900/90 text-rose-200 font-bold text-sm">
+                        Thu Cần
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full z-20 px-2 sm:px-5 pb-2.5 pt-1 pointer-events-none">
+        <div class="max-w-6xl mx-auto flex items-end justify-between gap-2">
+            
+            <!-- Left Side: On-Screen D-Pad Movement Controls -->
+            <div class="pixel-box p-2 bg-[#181321]/90 pointer-events-auto flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Di Chuyển (WASD / Mũi Tên)</span>
+                <div class="grid grid-cols-3 gap-1.5 w-32 sm:w-36">
+                    <div></div>
+                    <button data-dir="up" class="dpad-btn pixel-btn bg-slate-800 hover:bg-slate-700 text-amber-300 h-10 sm:h-11 flex items-center justify-center text-lg active:bg-amber-600 active:text-slate-950">
+                        <i class="fa-solid fa-caret-up"></i>
+                    </button>
+                    <div></div>
+                    <button data-dir="left" class="dpad-btn pixel-btn bg-slate-800 hover:bg-slate-700 text-amber-300 h-10 sm:h-11 flex items-center justify-center text-lg active:bg-amber-600 active:text-slate-950">
+                        <i class="fa-solid fa-caret-left"></i>
+                    </button>
+                    <button data-dir="down" class="dpad-btn pixel-btn bg-slate-800 hover:bg-slate-700 text-amber-300 h-10 sm:h-11 flex items-center justify-center text-lg active:bg-amber-600 active:text-slate-950">
+                        <i class="fa-solid fa-caret-down"></i>
+                    </button>
+                    <button data-dir="right" class="dpad-btn pixel-btn bg-slate-800 hover:bg-slate-700 text-amber-300 h-10 sm:h-11 flex items-center justify-center text-lg active:bg-amber-600 active:text-slate-950">
+                        <i class="fa-solid fa-caret-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Side: Primary Action & RPG Feature Buttons -->
+            <div class="flex flex-wrap items-end justify-end gap-2 pointer-events-auto">
+                <!-- Inventory / Fish Bag Button -->
+                <button onclick="openModal('bagModal')" class="pixel-btn bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2.5 sm:px-4 sm:py-3 flex flex-col items-center justify-center min-w-[68px] sm:min-w-[80px]">
+                    <div class="relative">
+                        <i class="fa-solid fa-fish-fins text-cyan-400 text-lg sm:text-xl"></i>
+                        <span id="badge-bag-count" class=" -top-2 -right-3 bg-emerald-500 text-slate-950 text-[10px] font-extrabold px-1.5 rounded-full">0</span>
+                    </div>
+                    <span class="text-[11px] sm:text-xs font-bold mt-1">Giỏ Cá (B)</span>
+                </button>
+
+                <!-- Merchant Shop Button (Can be clicked anytime or when near Old Man) -->
+                <button onclick="openModal('shopModal')" class="pixel-btn bg-amber-900/90 hover:bg-amber-800 text-amber-100 px-3 py-2.5 sm:px-4 sm:py-3 flex flex-col items-center justify-center min-w-[74px] sm:min-w-[88px]">
+                    <i class="fa-solid fa-store text-amber-400 text-lg sm:text-xl"></i>
+                    <span class="text-[11px] sm:text-xs font-bold mt-1">Lão Ngư (E)</span>
+                </button>
+
+                <!-- Bait Quick Switch Button -->
+                <button onclick="cycleBait()" class="pixel-btn bg-purple-950/90 hover:bg-purple-900 text-purple-100 px-3 py-2.5 sm:px-4 sm:py-3 flex flex-col items-center justify-center min-w-[68px] sm:min-w-[80px]">
+                    <i class="fa-solid fa-worm text-pink-400 text-lg sm:text-xl"></i>
+                    <span class="text-[11px] sm:text-xs font-bold mt-1">Đổi Mồi (Q)</span>
+                </button>
+
+                <!-- Main Cast / Hook Fishing Button -->
+                <button id="btn-main-fish" onclick="handlePrimaryFishAction()" class="pixel-btn bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 px-5 py-3 sm:px-6 sm:py-3.5 flex items-center gap-2.5 font-extrabold text-sm sm:text-base shadow-lg">
+                    <i class="fa-solid fa-water text-lg sm:text-xl"></i>
+                    <div class="text-left leading-tight">
+                        <div id="btn-fish-label">QUĂNG CẦN</div>
+                        <div class="text-[10px] font-bold opacity-80">Phím SPACE</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <div id="catchModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+        <div class="pixel-box w-full max-w-md p-5 bg-[#1b1526] border-amber-400 text-center relative animate-float">
+            <div class="text-xs font-bold uppercase tracking-widest text-amber-300 mb-1">✨ Thuần Hóa Thành Công ✨</div>
+            <h2 id="catch-fish-name" class="font-pixel-title text-3xl sm:text-4xl text-yellow-300 mb-2">Bắc Minh Côn Bằng</h2>
+            <div class="flex items-center justify-center gap-2 mb-3">
+                <span id="catch-fish-rarity" class="text-xs font-bold px-2.5 py-0.5 rounded border rarity-mythic">Thần Thoại Thái Cổ</span>
+                <span id="catch-fish-size" class="text-xs font-bold px-2.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-cyan-700">Kích thước: 480 cm</span>
+            </div>
+
+            <!-- Procedural Pixel Canvas Preview of the Caught Beast -->
+            <div class="w-40 h-28 mx-auto my-2 rounded-lg bg-[#0f172a] border-2 border-amber-500/60 flex items-center justify-center shadow-inner relative overflow-hidden">
+                <canvas id="catchPreviewCanvas" width="120" height="84" class="w-full h-full"></canvas>
+            </div>
+
+            <!-- Sơn Hải Kinh Lore Description -->
+            <p id="catch-fish-lore" class="text-xs sm:text-sm text-slate-300 italic bg-black/30 p-3 rounded border border-slate-700/80 my-3 leading-relaxed">
+                "Ghi chép trong Sơn Hải Kinh: Loài cá thần có cánh chim, tiếng kêu như chim uyên ương, xuất hiện đem lại điềm lành."
+            </p>
+
+            <!-- Rewards Info -->
+            <div class="grid grid-cols-2 gap-2 bg-slate-900/80 p-2.5 rounded border border-slate-800 mb-4 text-xs sm:text-sm font-bold">
+                <div class="text-emerald-400">✨ Kinh Nghiệm: +<span id="catch-fish-exp">45</span> EXP</div>
+                <div class="text-yellow-400">🪙 Giá Trị: <span id="catch-fish-price">120</span> Linh Thạch</div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="sellLastCaughtFish()" class="pixel-btn flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-sm">
+                    💰 Bán Ngay (+<span id="catch-QuickSell-val">120</span>)
+                </button>
+                <button onclick="closeModal('catchModal')" class="pixel-btn flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-extrabold text-sm">
+                    🎒 Bỏ Vào Giỏ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shopModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-3 sm:p-4">
+        <div class="pixel-box w-full max-w-3xl max-h-[88vh] flex flex-col bg-[#1b1526]">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-[#130e1c] rounded-t-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-lg bg-amber-950 border-2 border-amber-500 flex items-center justify-center text-2xl">
+                        🧙‍♂️
+                    </div>
+                    <div>
+                        <h3 class="font-pixel-title text-2xl sm:text-3xl text-amber-300 leading-none">Tiệm Cần Câu Lão Ngư Ông</h3>
+                        <p class="text-xs text-slate-300 mt-0.5">"Muốn câu đại ngư trong Sơn Hải Kinh, trước hết phải có thần cần và linh đan!"</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="bg-slate-900 px-3 py-1 rounded border border-yellow-600 text-yellow-400 font-bold text-sm">
+                        🪙 <span id="shop-gold-display">0</span> Linh Thạch
+                    </span>
+                    <button onclick="closeModal('shopModal')" class="pixel-btn bg-rose-900 text-rose-100 w-8 h-8 font-bold">✕</button>
+                </div>
+            </div>
+
+            <!-- Shop Tabs -->
+            <div class="flex border-b border-slate-700 bg-slate-900/50 px-4 pt-2 gap-2">
+                <button onclick="switchShopTab('rods')" id="tab-btn-rods" class="px-4 py-2 text-xs sm:text-sm font-bold rounded-t-lg bg-amber-600 text-slate-950">
+                    🎣 Thần Cần (Cần Câu)
+                </button>
+                <button onclick="switchShopTab('baits')" id="tab-btn-baits" class="px-4 py-2 text-xs sm:text-sm font-bold rounded-t-lg bg-slate-800 text-slate-300">
+                    🪱 Linh Nhử (Mồi Câu)
+                </button>
+                <button onclick="sellAllFish()" class="ml-auto my-1 pixel-btn bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-3 py-1 text-xs font-extrabold flex items-center gap-1.5">
+                    <i class="fa-solid fa-sack-dollar"></i> Bán Hết Cá Trong Giỏ (<span id="shop-sell-all-val">0</span> 🪙)
+                </button>
+            </div>
+
+            <!-- Shop Items List -->
+            <div id="shop-content-rods" class="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            <div id="shop-content-baits" class="hidden p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+    </div>
+
+    <div id="bagModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-3 sm:p-4">
+        <div class="pixel-box w-full max-w-2xl max-h-[85vh] flex flex-col bg-[#1b1526]">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-[#130e1c] rounded-t-lg">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-fish-fins text-cyan-400 text-xl"></i>
+                    <h3 class="font-pixel-title text-2xl sm:text-3xl text-cyan-300">Giỏ Cá Linh Thú</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="sellAllFish()" class="pixel-btn bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 text-xs font-extrabold">
+                        💰 Bán Tất Cả (+<span id="bag-sell-all-val">0</span> 🪙)
+                    </button>
+                    <button onclick="closeModal('bagModal')" class="pixel-btn bg-rose-900 text-rose-100 w-8 h-8 font-bold">✕</button>
+                </div>
+            </div>
+            <div id="bag-items-container" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 flex-1"></div>
+        </div>
+    </div>
+
+    <div id="bestiaryModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-3 sm:p-4">
+        <div class="pixel-box w-full max-w-4xl max-h-[88vh] flex flex-col bg-[#1b1526]">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-[#130e1c] rounded-t-lg">
+                <div>
+                    <h3 class="font-pixel-title text-2xl sm:text-3xl text-amber-300">📖 Sơn Hải Kinh Đồ Giám</h3>
+                    <p class="text-xs text-slate-400">Thu thập toàn bộ 16 loài dị thú dưới nước được ghi chép trong cổ thư</p>
+                </div>
+                <button onclick="closeModal('bestiaryModal')" class="pixel-btn bg-rose-900 text-rose-100 w-8 h-8 font-bold">✕</button>
+            </div>
+            <div id="bestiary-grid" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+    </div>
+
+    <div id="realmModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-3 sm:p-4">
+        <div class="pixel-box w-full max-w-2xl max-h-[85vh] flex flex-col bg-[#1b1526]">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-[#130e1c] rounded-t-lg">
+                <div>
+                    <h3 class="font-pixel-title text-2xl sm:text-3xl text-indigo-300">🗺️ Bản Đồ Sơn Hải Thủy Vực</h3>
+                    <p class="text-xs text-slate-400">Mỗi vùng biển ẩn giấu những loài thủy quái và cảnh sắc khác nhau</p>
+                </div>
+                <button onclick="closeModal('realmModal')" class="pixel-btn bg-rose-900 text-rose-100 w-8 h-8 font-bold">✕</button>
+            </div>
+            <div id="realm-list" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
+    </div>
+
+    <div id="helpModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-4">
+        <div class="pixel-box w-full max-w-lg p-5 bg-[#1b1526] flex flex-col gap-3">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+                <h3 class="font-pixel-title text-2xl text-amber-300">📜 Cẩm Nang Ngư Phu Sơn Hải</h3>
+                <button onclick="closeModal('helpModal')" class="pixel-btn bg-rose-900 text-rose-100 w-8 h-8 font-bold">✕</button>
+            </div>
+            <div class="text-xs sm:text-sm text-slate-200 space-y-2 leading-relaxed">
+                <p>🚶 <b>Di chuyển:</b> Dùng phím <b>W, A, S, D</b> / <b>Phím Mũi Tên</b> hoặc bộ nút <b>D-Pad</b> góc trái dưới màn hình để đi dạo quanh bến cảng, cầu gỗ, tiệm Lão Ngư Ông và thuyền dịch chuyển.</p>
+                <p>🎣 <b>Cách câu cá:</b> Đứng gần mép nước (trên cầu gỗ hoặc bờ biển) và nhấn <b>QUĂNG CẦN (Phím SPACE)</b>. Khi phao nhấp nhô báo hiệu <b>!</b>, hệ thống kéo cá sẽ tự động mở ra.</p>
+                <p>⚡ <b>Thao tác kéo cá đơn giản:</b> Chỉ cần <b>Nhấn Giữ hoặc Nhấp thả nút KÉO CẦN (SPACE)</b> để đưa vùng sáng màu ngọc trùng với vị trí cá. Thanh tiến trình bắt đầu sẵn ở 40% và rất dễ làm đầy!</p>
+                <p>🧙‍♂️ <b>Nâng cấp & Bối cảnh:</b> Bán cá cho <b>Lão Ngư Ông</b> để mua Cần Câu Thần Thoại (giúp vùng câu rộng hơn, câu được Côn Bằng & Giao Long) và mở khóa 4 vùng biển Sơn Hải Kinh khi lên cấp!</p>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+                <button onclick="resetSaveData()" class="pixel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 px-3 py-1.5 text-xs font-bold">
+                    🗑️ Xóa Dữ Liệu Chơi Lại
+                </button>
+                <button onclick="closeModal('helpModal')" class="pixel-btn bg-amber-500 text-slate-950 px-5 py-1.5 text-xs font-extrabold">
+                    Đã Hiểu!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ============================================================================
+         * 1. RETRO PIXEL SOUND ENGINE (Web Audio API - No external audio files needed)
+         * ============================================================================ */
+        const SoundFX = {
+            ctx: null,
+            enabled: true,
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            playTone(freq, type, duration, vol = 0.12, slideFreq = null) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    if (slideFreq) {
+                        osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + duration);
+                    }
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            },
+            cast() {
+                this.playTone(520, 'sine', 0.18, 0.14, 180);
+            },
+            splash() {
+                this.playTone(160, 'triangle', 0.22, 0.15, 75);
+            },
+            bite() {
+                this.playTone(660, 'square', 0.1, 0.14);
+                setTimeout(() => this.playTone(880, 'square', 0.16, 0.14), 100);
+            },
+            catchSuccess() {
+                const notes = [523.25, 659.25, 783.99, 1046.5];
+                notes.forEach((n, idx) => {
+                    setTimeout(() => this.playTone(n, 'triangle', 0.18, 0.16), idx * 90);
+                });
+            },
+            levelUp() {
+                const notes = [440, 554.37, 659.25, 880, 1108.73];
+                notes.forEach((n, idx) => {
+                    setTimeout(() => this.playTone(n, 'square', 0.2, 0.14), idx * 85);
+                });
+            },
+            coin() {
+                this.playTone(987.77, 'sine', 0.09, 0.12);
+                setTimeout(() => this.playTone(1318.51, 'sine', 0.18, 0.12), 80);
+            }
+        };
+
+        function toggleAudio() {
+            SoundFX.enabled = !SoundFX.enabled;
+            const btn = document.getElementById('btn-audio');
+            btn.innerHTML = SoundFX.enabled
+                ? '<i class="fa-solid fa-volume-high"></i>'
+                : '<i class="fa-solid fa-volume-xmark text-rose-400"></i>';
+            showToast(SoundFX.enabled ? '🔊 Đã bật âm thanh 8-bit' : '🔇 Đã tắt âm thanh');
+        }
+
+        /* ============================================================================
+         * 2. GAME DATA: REALMS, FISHING RODS, BAITS & SHAN HAI JING BESTIARY
+         * ============================================================================ */
+        const REALMS = [
+            {
+                id: 'dong_hai',
+                name: 'Đông Hải Bích Thủy',
+                reqLevel: 1,
+                desc: 'Vùng biển ngọc bích ấm áp phía Đông, nơi hoa đào rơi bên bến cảng cổ và các loài linh ngư hiền hòa sinh sống.',
+                skyTop: '#172554',
+                skyBottom: '#38bdf8',
+                waterTop: '#0284c7',
+                waterBottom: '#082f49',
+                islandColor: '#3f6212',
+                treeLeafColor: '#f472b6', // Hoa đào hồng
+                particleColor: '#fbcfe8',
+                particleType: 'petals'
+            },
+            {
+                id: 'thanh_khau',
+                name: 'Thanh Khâu Hồ Tiên',
+                reqLevel: 2,
+                desc: 'Hồ nước huyền ảo dưới ánh hoàng hôn tím vùng Thanh Khâu, nơi Cửu Vĩ Thủy Hồ và Nhân Ngư thường xuất hiện.',
+                skyTop: '#2e1065',
+                skyBottom: '#c084fc',
+                waterTop: '#4c1d95',
+                waterBottom: '#1e1b4b',
+                islandColor: '#3730a3',
+                treeLeafColor: '#a78bfa',
+                particleColor: '#fef08a',
+                particleType: 'fireflies'
+            },
+            {
+                id: 'bac_minh',
+                name: 'Bắc Minh Hàn Uyên',
+                reqLevel: 4,
+                desc: 'Vực băng vĩnh cửu phương Bắc dưới dải cực quang xanh, nơi ẩn cư của thần thú Bắc Minh Côn Bằng khổng lồ.',
+                skyTop: '#022c22',
+                skyBottom: '#2dd4bf',
+                waterTop: '#0f766e',
+                waterBottom: '#042f2e',
+                islandColor: '#cbd5e1',
+                treeLeafColor: '#67e8f9',
+                particleColor: '#ffffff',
+                particleType: 'snow'
+            },
+            {
+                id: 'hoa_diem',
+                name: 'Hỏa Diệm Linh Đàm',
+                reqLevel: 6,
+                desc: 'Đầm linh hỏa rực cháy giữa núi lửa thái cổ, nơi Giao Long và Chúc Âm Viêm Long Ngư vẫy vùng.',
+                skyTop: '#450a0a',
+                skyBottom: '#fb923c',
+                waterTop: '#b91c1c',
+                waterBottom: '#450a0a',
+                islandColor: '#292524',
+                treeLeafColor: '#fbbf24',
+                particleColor: '#fde047',
+                particleType: 'embers'
+            }
+        ];
+
+        const RODS = [
+            {
+                id: 'rod_bamboo',
+                name: 'Cần Trúc Thanh Vân',
+                price: 0,
+                zoneWidth: 32,       // % width of green bar
+                reelSpeed: 1.0,
+                rareBonus: 1.0,
+                color: '#4ade80',
+                desc: 'Cần trúc dẻo dai của Lão Ngư Ông tặng cho người mới nhập môn.'
+            },
+            {
+                id: 'rod_iron',
+                name: 'Cần Huyền Thiết Cổ',
+                price: 150,
+                zoneWidth: 38,
+                reelSpeed: 1.2,
+                rareBonus: 1.35,
+                color: '#38bdf8',
+                desc: 'Rèn từ huyền thiết dưới đáy Đông Hải, tăng độ rộng vùng câu và tốc độ thu dây.'
+            },
+            {
+                id: 'rod_jade',
+                name: 'Cần Bích Ngọc Thanh Khâu',
+                price: 480,
+                zoneWidth: 44,
+                reelSpeed: 1.4,
+                rareBonus: 1.8,
+                color: '#2dd4bf',
+                desc: 'Khảm ngọc bích hồ tiên, thu hút mạnh các loài Địa Phẩm và Thiên Phẩm.'
+            },
+            {
+                id: 'rod_dragon',
+                name: 'Cần Giao Long Lôi Đình',
+                price: 1200,
+                zoneWidth: 50,
+                reelSpeed: 1.65,
+                rareBonus: 2.5,
+                color: '#c084fc',
+                desc: 'Chế tác từ sừng Giao Long, giúp thuần hóa đại yêu thú nhẹ nhàng như trở bàn tay.'
+            },
+            {
+                id: 'rod_chaos',
+                name: 'Cần Hỗn Độn Thần Mộc',
+                price: 3000,
+                zoneWidth: 58,
+                reelSpeed: 2.0,
+                rareBonus: 3.6,
+                color: '#fbbf24',
+                desc: 'Thần khí tối thượng từ cành cây Kiến Mộc thái cổ, khắc tinh của Bắc Minh Côn Bằng!'
+            }
+        ];
+
+        const BAITS = [
+            {
+                id: 'bait_basic',
+                name: 'Mồi Linh Thảo',
+                price: 0,
+                infinite: true,
+                rareMult: 1.0,
+                biteSpeed: 1.0,
+                icon: '🌿',
+                desc: 'Cỏ linh thảo mọc quanh bến cảng. Miễn phí và dùng vô hạn.'
+            },
+            {
+                id: 'bait_jade',
+                name: 'Mồi Ngọc Trùng',
+                price: 15,
+                infinite: false,
+                rareMult: 1.5,
+                biteSpeed: 1.3,
+                icon: '🪱',
+                desc: 'Tăng 50% tỉ lệ gặp cá quý và cá cắn câu nhanh hơn.'
+            },
+            {
+                id: 'bait_spirit',
+                name: 'Mồi Huyết Ngọc Đan',
+                price: 45,
+                infinite: false,
+                rareMult: 2.4,
+                biteSpeed: 1.6,
+                icon: '🔮',
+                desc: 'Linh đan tỏa hương thơm ngát dụ dỗ Thiên Phẩm và Thần Thoại Thái Cổ!'
+            }
+        ];
+
+        const RARITIES = {
+            COMMON: { id: 'COMMON', name: 'Phàm Phẩm', css: 'rarity-common', weight: 50, speed: 0.7 },
+            SPIRIT: { id: 'SPIRIT', name: 'Linh Phẩm', css: 'rarity-spirit', weight: 30, speed: 0.9 },
+            EARTH:  { id: 'EARTH',  name: 'Địa Phẩm',  css: 'rarity-earth',  weight: 13, speed: 1.1 },
+            HEAVEN: { id: 'HEAVEN', name: 'Thiên Phẩm', css: 'rarity-heaven', weight: 5.5, speed: 1.28 },
+            MYTHIC: { id: 'MYTHIC', name: 'Thần Thoại Thái Cổ', css: 'rarity-mythic', weight: 1.5, speed: 1.45 }
+        };
+
+        const SHAN_HAI_FISH = [
+            {
+                id: 'van_ngu',
+                name: 'Văn Ngư (Cá Có Cánh)',
+                realm: 'any',
+                rarity: 'COMMON',
+                basePrice: 22,
+                exp: 25,
+                minSize: 30, maxSize: 85,
+                colors: ['#38bdf8', '#f472b6', '#fef08a'],
+                feature: 'wings',
+                lore: 'Tây Sơn Kinh chép: Loài cá mình hoa văn ngũ sắc, có đôi cánh chim trắng, bay lượn trên mặt sóng báo hiệu mùa màng bội thu.'
+            },
+            {
+                id: 'hoat_ngu',
+                name: 'Hoạt Ngư (Cá Bốn Chân)',
+                realm: 'any',
+                rarity: 'COMMON',
+                basePrice: 26,
+                exp: 28,
+                minSize: 35, maxSize: 95,
+                colors: ['#4ade80', '#166534', '#bef264'],
+                feature: 'legs',
+                lore: 'Nam Sơn Kinh chép: Mình cá nhưng có bốn chân như kỳ nhông, tiếng kêu như trẻ thơ, ăn vào trừ được chứng sưng tấy.'
+            },
+            {
+                id: 'bach_ngoc_ngu',
+                name: 'Bạch Ngọc Linh Ngư',
+                realm: 'dong_hai',
+                rarity: 'COMMON',
+                basePrice: 30,
+                exp: 32,
+                minSize: 25, maxSize: 70,
+                colors: ['#e2e8f0', '#38bdf8', '#94a3b8'],
+                feature: 'fin_long',
+                lore: 'Loài cá vảy trắng trong suốt như ngọc bích bơi quanh cầu gỗ Đông Hải, rất thích ăn lá Linh Thảo.'
+            },
+            {
+                id: 'xich_nho',
+                name: 'Xích Nho (Nhân Diện Ngư)',
+                realm: 'dong_hai',
+                rarity: 'SPIRIT',
+                basePrice: 55,
+                exp: 48,
+                minSize: 60, maxSize: 140,
+                colors: ['#f87171', '#dc2626', '#fef08a'],
+                feature: 'crest',
+                lore: 'Nam Sơn Kinh chép: Loài cá vảy đỏ rực như chu sa, tiếng kêu như chim uyên ương, tương truyền giúp người ăn bách bệnh bất xâm.'
+            },
+            {
+                id: 'dan_ngu',
+                name: 'Đan Ngư (Cá Huyết Đan)',
+                realm: 'any',
+                rarity: 'SPIRIT',
+                basePrice: 65,
+                exp: 55,
+                minSize: 45, maxSize: 110,
+                colors: ['#fb7185', '#f43f5e', '#fde047'],
+                feature: 'glow',
+                lore: 'Bắc Sơn Kinh chép: Ban đêm phát ra hào quang đỏ rực dưới đáy nước. Tương truyền bôi huyết Đan Ngư dưới bàn chân có thể đi bộ trên mặt nước!'
+            },
+            {
+                id: 'loi_ngu',
+                name: 'Tử Lôi Linh Ngư',
+                realm: 'thanh_khau',
+                rarity: 'SPIRIT',
+                basePrice: 78,
+                exp: 65,
+                minSize: 70, maxSize: 165,
+                colors: ['#a855f7', '#38bdf8', '#fde047'],
+                feature: 'horn',
+                lore: 'Mỗi khi Tử Lôi Ngư quẫy đuôi dưới mặt hồ Thanh Khâu đều tạo ra những tia hồ quang điện lấp lánh.'
+            },
+            {
+                id: 'lac_ngu',
+                name: 'Lạc Ngư (Cá Đuôi Phượng)',
+                realm: 'dong_hai',
+                rarity: 'EARTH',
+                basePrice: 120,
+                exp: 90,
+                minSize: 90, maxSize: 210,
+                colors: ['#f59e0b', '#ef4444', '#fef08a'],
+                feature: 'wings',
+                lore: 'Đông Sơn Kinh chép: Thân cá chép vảy vàng rực rỡ, mang chiếc đuôi dài năm màu của chim Phượng Hoàng.'
+            },
+            {
+                id: 'lang_ngu',
+                name: 'Lăng Ngư (Giao Nhân Đông Hải)',
+                realm: 'thanh_khau',
+                rarity: 'EARTH',
+                basePrice: 145,
+                exp: 110,
+                minSize: 120, maxSize: 230,
+                colors: ['#2dd4bf', '#0ea5e9', '#fde047'],
+                feature: 'crest',
+                lore: 'Hải Nội Bắc Kinh chép: Sinh vật nửa người nửa cá sống nơi đảo tiên, nước mắt rơi xuống hóa thành trân châu sáng giá.'
+            },
+            {
+                id: 'doanh_ngu',
+                name: 'Doanh Ngư (Thiên Dực Ngư)',
+                realm: 'bac_minh',
+                rarity: 'EARTH',
+                basePrice: 165,
+                exp: 125,
+                minSize: 130, maxSize: 280,
+                colors: ['#38bdf8', '#1d4ed8', '#e0f2fe'],
+                feature: 'wings',
+                lore: 'Mình cá chép xanh thẫm mang đôi cánh chim ưng khổng lồ, mỗi khi xuất hiện đều tạo nên sóng lớn.'
+            },
+            {
+                id: 'ha_la_ngu',
+                name: 'Hà La Ngư (Thập Thân Ngư)',
+                realm: 'bac_minh',
+                rarity: 'EARTH',
+                basePrice: 190,
+                exp: 140,
+                minSize: 150, maxSize: 320,
+                colors: ['#818cf8', '#312e81', '#67e8f9'],
+                feature: 'multi',
+                lore: 'Bắc Sơn Kinh chép: Loài dị ngư chỉ có một đầu nhưng phân làm mười thân uyển chuyển dưới đáy biển băng.'
+            },
+            {
+                id: 'nhiem_di',
+                name: 'Nhiễm Di (Lục Túc Xà Ngư)',
+                realm: 'hoa_diem',
+                rarity: 'HEAVEN',
+                basePrice: 310,
+                exp: 210,
+                minSize: 220, maxSize: 450,
+                colors: ['#ef4444', '#7f1d1d', '#fbbf24'],
+                feature: 'serpent',
+                lore: 'Tây Sơn Kinh chép: Mình cá, thân dài như mãng xà, vảy đỏ ánh kim, có sáu chân, có thể hô phong hoán vũ.'
+            },
+            {
+                id: 'cuu_vi_thuy_ho',
+                name: 'Cửu Vĩ Hồ Ngư Thanh Khâu',
+                realm: 'thanh_khau',
+                rarity: 'HEAVEN',
+                basePrice: 360,
+                exp: 240,
+                minSize: 180, maxSize: 360,
+                colors: ['#f472b6', '#c084fc', '#fef08a'],
+                feature: 'wings',
+                lore: 'Hồ tiên chín đuôi hóa thân thành linh ngư bơi lội dưới ánh trăng tím của đầm lầy Thanh Khâu.'
+            },
+            {
+                id: 'huyen_quy',
+                name: 'Thái Cổ Huyền Quy',
+                realm: 'bac_minh',
+                rarity: 'HEAVEN',
+                basePrice: 420,
+                exp: 280,
+                minSize: 280, maxSize: 600,
+                colors: ['#10b981', '#064e3b', '#34d399'],
+                feature: 'shell',
+                lore: 'Đông Sơn Kinh chép: Rùa thần cổ đại mang hoa văn Lạc Thư trên lưng, sống hàng vạn năm nơi vực thẳm.'
+            },
+            {
+                id: 'giao_long',
+                name: 'Bích Hải Giao Long',
+                realm: 'dong_hai',
+                rarity: 'MYTHIC',
+                basePrice: 780,
+                exp: 480,
+                minSize: 500, maxSize: 1200,
+                colors: ['#2dd4bf', '#0284c7', '#fde047'],
+                feature: 'dragon',
+                lore: 'Thủy thần thống lĩnh muôn loài cá vùng Đông Hải, tu luyện ngàn năm chờ ngày vượt Vũ Môn hóa Chân Long!'
+            },
+            {
+                id: 'chuc_am_viem_ngu',
+                name: 'Chúc Âm Hỏa Long Ngư',
+                realm: 'hoa_diem',
+                rarity: 'MYTHIC',
+                basePrice: 950,
+                exp: 600,
+                minSize: 650, maxSize: 1500,
+                colors: ['#f97316', '#dc2626', '#fef08a'],
+                feature: 'dragon',
+                lore: 'Sinh ra từ hơi thở của thần Chúc Cửu Âm tại Hỏa Diệm Linh Đàm, nhắm mắt là đêm tối, mở mắt là ban ngày.'
+            },
+            {
+                id: 'con_bang',
+                name: 'Bắc Minh Côn Bằng',
+                realm: 'bac_minh',
+                rarity: 'MYTHIC',
+                basePrice: 1500,
+                exp: 950,
+                minSize: 1200, maxSize: 3600,
+                colors: ['#38bdf8', '#a855f7', '#fde047'],
+                feature: 'kunpeng',
+                lore: '"Bắc Minh hữu ngư, kỳ danh vi Côn. Côn chi đại, bất tri kỳ kỷ thiên lý dã..." Thần thú tối thượng của Sơn Hải Kinh!'
+            }
+        ];
+
+        const LEVEL_TITLES = [
+            'Tân Thủ Ngư Phu',
+            'Khách Câu Đông Hải',
+            'Linh Ngư Thợ Săn',
+            'Thanh Khâu Đạo Hữu',
+            'Bắc Minh Ngự Thủy Sư',
+            'Hàng Long Ngư Tôn',
+            'Sơn Hải Thần Điếu Thủ',
+            'Thái Cổ Thủy Hoàng'
+        ];
+
+        /* ============================================================================
+         * 3. PLAYER STATE & SAVE SYSTEM
+         * ============================================================================ */
+        const SAVE_KEY = 'son_hai_ngu_luc_save_v1';
+
+        let state = {
+            level: 1,
+            exp: 0,
+            expToNext: 100,
+            gold: 60,
+            currentRealm: 'dong_hai',
+            equippedRod: 'rod_bamboo',
+            ownedRods: ['rod_bamboo'],
+            equippedBait: 'bait_basic',
+            baitCounts: {
+                bait_basic: 999,
+                bait_jade: 3,
+                bait_spirit: 1
+            },
+            bag: [],
+            bestiary: {}, // { fishId: { count: 1, maxSize: 120 } }
+            lastCaughtFish: null
+        };
+
+        function saveGame() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+            } catch (e) {}
+        }
+
+        function loadGame() {
+            try {
+                const raw = localStorage.getItem(SAVE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    state = { ...state, ...parsed };
+                }
+            } catch (e) {}
+        }
+
+        function resetSaveData() {
+            localStorage.removeItem(SAVE_KEY);
+            location.reload();
+        }
+
+        /* ============================================================================
+         * 4. 2D PIXEL WORLD & PLAYER ENTITY STATE
+         * ============================================================================ */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Logical pixel art resolution (scaled up crisply to fit any screen)
+        const VIEW_W = 480;
+        const VIEW_H = 270;
+        canvas.width = VIEW_W;
+        canvas.height = VIEW_H;
+
+        const player = {
+            x: 245,
+            y: 162,
+            vx: 0,
+            vy: 0,
+            speed: 1.55,
+            dir: 'right', // 'left', 'right', 'up', 'down'
+            walkFrame: 0,
+            fishingState: 'idle', // 'idle', 'casting', 'waiting', 'bite', 'minigame'
+            bobberX: 335,
+            bobberY: 185,
+            waitTimer: 0,
+            biteTimer: 0
+        };
+
+        // NPC Merchant (Lão Ngư Ông) & Boat Portal coordinates in logical pixel space
+        const npcMerchant = {
+            x: 112,
+            y: 142,
+            name: 'Lão Ngư Ông'
+        };
+
+        const realmBoat = {
+            x: 42,
+            y: 176,
+            name: 'Thuyền Vượt Hải Vực'
+        };
+
+        // Input state (Keyboard + Touch D-pad)
+        const keys = { up: false, down: false, left: false, right: false };
+
+        // Ambient particles (cherry petals, fireflies, snow, embers)
+        let particles = [];
+        let stars = [];
+        let waterRipples = [];
+
+        function initEnvironmentParticles() {
+            particles = [];
+            for (let i = 0; i < 28; i++) {
+                particles.push({
+                    x: Math.random() * VIEW_W,
+                    y: Math.random() * VIEW_H,
+                    vx: (Math.random() - 0.3) * 0.4,
+                    vy: 0.25 + Math.random() * 0.35,
+                    size: Math.random() > 0.5 ? 2 : 3,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+            stars = [];
+            for (let i = 0; i < 45; i++) {
+                stars.push({
+                    x: Math.floor(Math.random() * VIEW_W),
+                    y: Math.floor(Math.random() * 115),
+                    blinkOffset: Math.random() * 5
+                });
+            }
+        }
+
+        /* ============================================================================
+         * 5. PROCEDURAL PIXEL ART RENDERER (No External Images Needed)
+         * ============================================================================ */
+        function drawPixelRect(c, x, y, w, h, color) {
+            c.fillStyle = color;
+            c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+        }
+
+        // Draw any Shan Hai Jing mythical creature onto a canvas context
+        function drawMythicalFishSprite(c, fishData, cx, cy, scale = 2, time = 0) {
+            c.save();
+            c.translate(cx, cy);
+            const bob = Math.sin(time * 0.005) * 3;
+            c.translate(0, bob);
+            c.scale(scale, scale);
+
+            const [primary, secondary, accent] = fishData.colors;
+
+            // Tail fin
+            drawPixelRect(c, -18, -6, 5, 12, secondary);
+            drawPixelRect(c, -22, -9, 4, 6, accent);
+            drawPixelRect(c, -22, 3, 4, 6, accent);
+
+            // Special mythical features
+            if (fishData.feature === 'dragon' || fishData.feature === 'serpent') {
+                // Long sinuous dragon body
+                drawPixelRect(c, -14, -5, 26, 10, primary);
+                drawPixelRect(c, -10, -8, 18, 3, secondary);
+                // Golden horns & whiskers
+                drawPixelRect(c, 6, -12, 3, 5, accent);
+                drawPixelRect(c, 10, -11, 2, 4, accent);
+                drawPixelRect(c, 13, 3, 5, 2, accent);
+            } else if (fishData.feature === 'kunpeng') {
+                // Giant Kunpeng whale-bird form
+                drawPixelRect(c, -16, -9, 32, 18, primary);
+                drawPixelRect(c, -12, 4, 24, 5, '#e0f2fe');
+                // Huge celestial wings
+                drawPixelRect(c, -6, -17, 14, 9, secondary);
+                drawPixelRect(c, -2, -21, 8, 4, accent);
+                drawPixelRect(c, -4, 8, 12, 7, secondary);
+            } else if (fishData.feature === 'shell') {
+                // Xuan Quy Spirit Turtle
+                drawPixelRect(c, -12, -9, 22, 14, secondary);
+                drawPixelRect(c, -9, -7, 16, 10, primary);
+                drawPixelRect(c, -5, -4, 8, 4, accent);
+                drawPixelRect(c, 10, -3, 7, 6, primary);
+                drawPixelRect(c, -8, 5, 4, 4, primary);
+                drawPixelRect(c, 4, 5, 4, 4, primary);
+            } else {
+                // Classic mythical fish body
+                drawPixelRect(c, -13, -7, 26, 14, primary);
+                drawPixelRect(c, -10, -9, 20, 3, secondary);
+                drawPixelRect(c, -9, 5, 18, 3, secondary);
+            }
+
+            // Extra features from Shan Hai Jing lore
+            if (fishData.feature === 'wings') {
+                drawPixelRect(c, -5, -15, 11, 8, accent);
+                drawPixelRect(c, -2, -18, 6, 3, '#ffffff');
+            } else if (fishData.feature === 'legs') {
+                drawPixelRect(c, -7, 7, 3, 5, secondary);
+                drawPixelRect(c, 3, 7, 3, 5, secondary);
+            } else if (fishData.feature === 'horn' || fishData.feature === 'crest') {
+                drawPixelRect(c, 5, -14, 4, 6, accent);
+                drawPixelRect(c, 2, -12, 3, 4, secondary);
+            } else if (fishData.feature === 'multi') {
+                drawPixelRect(c, -20, -11, 8, 3, accent);
+                drawPixelRect(c, -20, 8, 8, 3, accent);
+            }
+
+            // Scales & Eye
+            drawPixelRect(c, -4, -2, 3, 3, accent);
+            drawPixelRect(c, 1, 1, 3, 3, accent);
+            drawPixelRect(c, 8, -4, 4, 4, '#ffffff');
+            drawPixelRect(c, 10, -3, 2, 2, '#090d16');
+
+            c.restore();
+        }
+
+        function renderWorld(timestamp) {
+            const realm = REALMS.find(r => r.id === state.currentRealm) || REALMS[0];
+
+            // 1. Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, 145);
+            skyGrad.addColorStop(0, realm.skyTop);
+            skyGrad.addColorStop(1, realm.skyBottom);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, VIEW_W, 145);
+
+            // Twinkling Pixel Stars & Moon
+            stars.forEach(s => {
+                const alpha = 0.35 + 0.55 * Math.sin(timestamp * 0.003 + s.blinkOffset);
+                ctx.fillStyle = `rgba(255, 255, 240, ${alpha})`;
+                ctx.fillRect(s.x, s.y, 2, 2);
+            });
+
+            // Glowing Moon / Celestial Sun
+            drawPixelRect(ctx, 390, 26, 26, 26, 'rgba(254, 240, 138, 0.22)');
+            drawPixelRect(ctx, 394, 30, 18, 18, '#fef08a');
+
+            // 2. Distant Shan Hai Jing Mountains (Parallax Pixel Silhouettes)
+            ctx.fillStyle = '#1e1b4b';
+            for (let i = 0; i < VIEW_W; i += 40) {
+                const h = 28 + ((i * 17) % 34);
+                drawPixelRect(ctx, i, 140 - h, 44, h, 'rgba(15, 23, 42, 0.65)');
+            }
+
+            // 3. Water Surface (y: 140 to 270)
+            const waterGrad = ctx.createLinearGradient(0, 140, 0, VIEW_H);
+            waterGrad.addColorStop(0, realm.waterTop);
+            waterGrad.addColorStop(1, realm.waterBottom);
+            ctx.fillStyle = waterGrad;
+            ctx.fillRect(0, 140, VIEW_W, VIEW_H - 140);
+
+            // Animated shimmering pixel waves
+            for (let row = 148; row < VIEW_H; row += 14) {
+                for (let col = 10; col < VIEW_W; col += 48) {
+                    const waveShift = Math.sin(timestamp * 0.002 + row + col) * 8;
+                    drawPixelRect(ctx, col + waveShift, row, 16, 2, 'rgba(255, 255, 255, 0.22)');
+                }
+            }
+
+            // Silhouettes of fish swimming under the water on the right side
+            for (let i = 0; i < 3; i++) {
+                const fx = 310 + ((timestamp * 0.025 + i * 65) % 150);
+                const fy = 175 + i * 26 + Math.sin(timestamp * 0.004 + i) * 5;
+                drawPixelRect(ctx, fx, fy, 10, 4, 'rgba(12, 20, 38, 0.45)');
+                drawPixelRect(ctx, fx - 4, fy + 1, 4, 2, 'rgba(12, 20, 38, 0.45)');
+            }
+
+            // 4. Coastal Village Island & Wooden Pier (Walkable Zone)
+            // Main grassy/stone bank (left side x: 0..205, y: 128..195)
+            drawPixelRect(ctx, 0, 134, 205, 56, '#3b2718'); // Earth cliff
+            drawPixelRect(ctx, 0, 128, 200, 46, realm.islandColor); // Grass top
+
+            // Spirit Peach/Willow Tree behind the shop
+            drawPixelRect(ctx, 152, 82, 10, 48, '#451a03'); // Trunk
+            drawPixelRect(ctx, 132, 62, 48, 24, realm.treeLeafColor);
+            drawPixelRect(ctx, 140, 52, 32, 14, realm.treeLeafColor);
+
+            // 5. Wooden Fishing Pier extending into the sea (x: 195..305, y: 152..178)
+            // Pier Support Pillars
+            for (let px = 205; px <= 295; px += 28) {
+                drawPixelRect(ctx, px, 165, 6, 26, '#29180c');
+                drawPixelRect(ctx, px - 2, 189, 10, 2, 'rgba(255,255,255,0.35)');
+            }
+            // Pier Planks
+            drawPixelRect(ctx, 190, 154, 114, 20, '#78350f');
+            for (let px = 194; px < 300; px += 8) {
+                drawPixelRect(ctx, px, 155, 6, 18, '#92400e');
+            }
+            // Glowing Lantern at the end of the pier
+            drawPixelRect(ctx, 296, 132, 3, 24, '#451a03');
+            drawPixelRect(ctx, 292, 132, 9, 3, '#451a03');
+            const lanternGlow = 0.65 + 0.25 * Math.sin(timestamp * 0.006);
+            drawPixelRect(ctx, 288, 135, 12, 12, `rgba(251, 191, 36, ${lanternGlow * 0.35})`);
+            drawPixelRect(ctx, 291, 137, 6, 8, '#fbbf24');
+
+            // 6. Realm Travel Boat at Left Dock (x: 24..64, y: 170..192)
+            const boatBob = Math.sin(timestamp * 0.004) * 2;
+            drawPixelRect(ctx, 22, 178 + boatBob, 44, 10, '#78350f');
+            drawPixelRect(ctx, 26, 188 + boatBob, 36, 4, '#451a03');
+            drawPixelRect(ctx, 42, 154 + boatBob, 3, 24, '#451a03'); // Mast
+            drawPixelRect(ctx, 45, 156 + boatBob, 16, 14, '#fef3c7'); // Sail
+
+            // 7. Old Fisherman's Shop Stall (Tiệm Cần Câu Lão Ngư Ông)
+            drawPixelRect(ctx, 84, 96, 56, 38, '#451a03'); // Shop booth frame
+            drawPixelRect(ctx, 78, 88, 68, 12, '#b91c1c'); // Oriental Red Roof
+            drawPixelRect(ctx, 82, 84, 60, 5, '#f59e0b');  // Gold Roof Ridge
+            drawPixelRect(ctx, 88, 118, 48, 16, '#78350f'); // Counter
+            // Hanging lanterns on shop
+            drawPixelRect(ctx, 82, 100, 5, 7, '#fbbf24');
+            drawPixelRect(ctx, 137, 100, 5, 7, '#fbbf24');
+
+            // Draw NPC Old Fisherman (Lão Ngư Ông)
+            const npcBob = Math.sin(timestamp * 0.005) * 1;
+            drawPixelRect(ctx, npcMerchant.x - 5, npcMerchant.y - 14 + npcBob, 10, 14, '#0284c7'); // Robe
+            drawPixelRect(ctx, npcMerchant.x - 4, npcMerchant.y - 21 + npcBob, 8, 7, '#fed7aa');  // Face
+            drawPixelRect(ctx, npcMerchant.x - 3, npcMerchant.y - 15 + npcBob, 6, 6, '#f8fafc');  // White Beard
+            drawPixelRect(ctx, npcMerchant.x - 8, npcMerchant.y - 24 + npcBob, 16, 4, '#eab308'); // Bamboo Hat
+
+            // Floating label above NPC & Boat
+            ctx.font = 'bold 9px "Be Vietnam Pro", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fde047';
+            ctx.fillText('🧙‍♂️ Lão Ngư Ông', npcMerchant.x, npcMerchant.y - 29);
+            ctx.fillStyle = '#93c5fd';
+            ctx.fillText('⛵ Bến Thuyền', realmBoat.x, realmBoat.y - 26);
+
+            // 8. Draw Player Character
+            drawPlayerCharacter(timestamp);
+
+            // 9. Draw Ambient Particles
+            particles.forEach(p => {
+                p.x += p.vx + Math.sin(timestamp * 0.002 + p.phase) * 0.15;
+                p.y += p.vy;
+                if (p.y > VIEW_H) { p.y = -5; p.x = Math.random() * VIEW_W; }
+                if (p.x > VIEW_W) p.x = 0;
+                if (p.x < 0) p.x = VIEW_W;
+                ctx.fillStyle = realm.particleColor;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+        }
+
+        function drawPlayerCharacter(timestamp) {
+            const px = Math.round(player.x);
+            const py = Math.round(player.y);
+            const isMoving = Math.abs(player.vx) > 0.05 || Math.abs(player.vy) > 0.05;
+            const stepOffset = isMoving ? Math.sin(timestamp * 0.018) * 2 : 0;
+
+            // Shadow
+            drawPixelRect(ctx, px - 6, py - 2, 12, 3, 'rgba(0,0,0,0.45)');
+
+            // Legs / Boots
+            drawPixelRect(ctx, px - 4, py - 6 + stepOffset, 3, 5, '#1e293b');
+            drawPixelRect(ctx, px + 1, py - 6 - stepOffset, 3, 5, '#1e293b');
+
+            // Tunic / Ancient Fisherman Outfit
+            drawPixelRect(ctx, px - 5, py - 16, 10, 11, '#0d9488');
+            drawPixelRect(ctx, px - 5, py - 10, 10, 2, '#fbbf24'); // Belt
+
+            // Head
+            drawPixelRect(ctx, px - 4, py - 23, 8, 7, '#fed7aa');
+            // Eyes facing direction
+            const eyeX = player.dir === 'left' ? px - 3 : px + 2;
+            drawPixelRect(ctx, eyeX, py - 20, 2, 2, '#0f172a');
+
+            // Conical Bamboo Hat (Nón Lá / Đấu Lạp)
+            drawPixelRect(ctx, px - 9, py - 25, 18, 3, '#f59e0b');
+            drawPixelRect(ctx, px - 6, py - 28, 12, 3, '#d97706');
+
+            // Equipped Fishing Rod Visuals
+            const rodObj = RODS.find(r => r.id === state.equippedRod) || RODS[0];
+            const rodDir = player.dir === 'left' ? -1 : 1;
+
+            if (player.fishingState !== 'idle') {
+                // Rod extended over water
+                ctx.strokeStyle = rodObj.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                const rodTipX = px + rodDir * 24;
+                const rodTipY = py - 24;
+                ctx.moveTo(px + rodDir * 4, py - 12);
+                ctx.lineTo(rodTipX, rodTipY);
+                ctx.stroke();
+
+                // Fishing Line to Bobber
+                const bobberBounce = player.fishingState === 'bite'
+                    ? Math.sin(timestamp * 0.04) * 4
+                    : Math.sin(timestamp * 0.006) * 1.5;
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(rodTipX, rodTipY);
+                ctx.lineTo(player.bobberX, player.bobberY + bobberBounce);
+                ctx.stroke();
+
+                // Water Ripples around Bobber
+                const rippleRadius = 4 + ((timestamp * 0.015) % 10);
+                ctx.strokeStyle = 'rgba(186, 230, 253, 0.45)';
+                ctx.strokeRect(
+                    player.bobberX - rippleRadius,
+                    player.bobberY - rippleRadius * 0.4,
+                    rippleRadius * 2,
+                    rippleRadius * 0.8
+                );
+
+                // Bobber Sprite
+                drawPixelRect(ctx, player.bobberX - 2, player.bobberY - 3 + bobberBounce, 5, 4, '#ef4444');
+                drawPixelRect(ctx, player.bobberX - 2, player.bobberY - 5 + bobberBounce, 5, 2, '#ffffff');
+
+                // Exclamation Alert if Fish is Biting!
+                if (player.fishingState === 'bite') {
+                    drawPixelRect(ctx, player.bobberX - 4, player.bobberY - 22, 9, 12, '#fef08a');
+                    ctx.fillStyle = '#dc2626';
+                    ctx.font = 'bold 10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('!', player.bobberX, player.bobberY - 12);
+                }
+            } else {
+                // Rod held on shoulder while walking
+                ctx.strokeStyle = rodObj.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px, py - 11);
+                ctx.lineTo(px - rodDir * 10, py - 27);
+                ctx.stroke();
+            }
+        }
+
+        /* ============================================================================
+         * 6. PLAYER MOVEMENT, COLLISION & PROXIMITY DETECTION
+         * ============================================================================ */
+        function isWalkable(nx, ny) {
+            // Land area: x in [16, 198], y in [132, 174]
+            const onLand = nx >= 16 && nx <= 198 && ny >= 132 && ny <= 174;
+            // Wooden Pier area: x in [190, 300], y in [154, 172]
+            const onPier = nx >= 190 && nx <= 300 && ny >= 154 && ny <= 172;
+            return onLand || onPier;
+        }
+
+        function isNearWaterEdge() {
+            // Can fish from anywhere on the wooden pier or near the right/bottom edge of the shore
+            return player.x >= 185 || player.y >= 165;
+        }
+
+        function updatePlayerMovement() {
+            if (player.fishingState === 'minigame') return;
+
+            let dx = 0;
+            let dy = 0;
+            if (keys.left) dx -= 1;
+            if (keys.right) dx += 1;
+            if (keys.up) dy -= 1;
+            if (keys.down) dy += 1;
+
+            if (dx !== 0 || dy !== 0) {
+                // If player walks while waiting for fish, automatically reel in
+                if (player.fishingState !== 'idle') {
+                    cancelFishing(true);
+                }
+                const len = Math.hypot(dx, dy);
+                player.vx = (dx / len) * player.speed;
+                player.vy = (dy / len) * player.speed;
+                if (dx < 0) player.dir = 'left';
+                if (dx > 0) player.dir = 'right';
+
+                const nextX = player.x + player.vx;
+                const nextY = player.y + player.vy;
+
+                if (isWalkable(nextX, player.y)) player.x = nextX;
+                if (isWalkable(player.x, nextY)) player.y = nextY;
+            } else {
+                player.vx = 0;
+                player.vy = 0;
+            }
+
+            // Check proximity to NPC Merchant or Realm Boat
+            const distMerchant = Math.hypot(player.x - npcMerchant.x, player.y - npcMerchant.y);
+            const distBoat = Math.hypot(player.x - realmBoat.x, player.y - realmBoat.y);
+            const promptEl = document.getElementById('context-prompt');
+            const promptText = document.getElementById('context-prompt-text');
+            const promptIcon = document.getElementById('context-prompt-icon');
+
+            if (distMerchant < 34) {
+                promptEl.classList.remove('hidden');
+                promptIcon.textContent = '🧙‍♂️';
+                promptText.textContent = 'Gần Lão Ngư Ông: Nhấn [E] hoặc nút Lão Ngư để mua Thần Cần!';
+            } else if (distBoat < 34) {
+                promptEl.classList.remove('hidden');
+                promptIcon.textContent = '⛵';
+                promptText.textContent = 'Bến Thuyền: Nhấn [E] hoặc nút Bản Đồ để sang vùng biển mới!';
+            } else {
+                promptEl.classList.add('hidden');
+            }
+        }
+
+        /* ============================================================================
+         * 7. ACCESSIBLE FISHING SYSTEM & FORGIVING MINIGAME
+         * ============================================================================ */
+        const minigame = {
+            active: false,
+            targetFish: null,
+            progress: 42,         // Starts at 42% so player feels immediate momentum!
+            zonePos: 25,          // Left % (0..100 - zoneWidth)
+            zoneVel: 0,
+            zoneWidth: 32,
+            fishPos: 35,          // 0..90%
+            fishTarget: 55,
+            fishVel: 0,
+            fishTimer: 0,
+            holdingReel: false
+        };
+
+        function handlePrimaryFishAction() {
+            if (player.fishingState === 'idle') {
+                startCasting();
+            } else if (player.fishingState === 'waiting') {
+                cancelFishing();
+            } else if (player.fishingState === 'bite') {
+                launchFishingMinigame();
+            }
+        }
+
+        function startCasting() {
+            // Face right toward the deep sea if on pier
+            if (player.x > 180) player.dir = 'right';
+
+            // Consume 1 special bait if equipped and available, otherwise auto-fallback to basic bait
+            const baitObj = BAITS.find(b => b.id === state.equippedBait);
+            if (baitObj && !baitObj.infinite) {
+                if ((state.baitCounts[baitObj.id] || 0) <= 0) {
+                    state.equippedBait = 'bait_basic';
+                    showToast('🌿 Đã hết mồi đặc biệt, tự động chuyển sang Mồi Linh Thảo!');
+                    updateHUD();
+                }
+            }
+
+            player.fishingState = 'waiting';
+            const dir = player.dir === 'left' ? -1 : 1;
+            player.bobberX = Math.max(25, Math.min(VIEW_W - 25, player.x + dir * (48 + Math.random() * 25)));
+            player.bobberY = Math.max(162, Math.min(235, player.y + 18 + Math.random() * 20));
+
+            const activeBait = BAITS.find(b => b.id === state.equippedBait) || BAITS[0];
+            // Wait only 1.2 to 2.5 seconds so gameplay is snappy and fun
+            player.waitTimer = (75 + Math.random() * 75) / activeBait.biteSpeed;
+
+            SoundFX.cast();
+            setTimeout(() => SoundFX.splash(), 160);
+            updateFishButtonUI();
+        }
+
+        function cancelFishing(silent = false) {
+            player.fishingState = 'idle';
+            minigame.active = false;
+            document.getElementById('fishing-minigame').classList.add('hidden');
+            if (!silent) showToast('🎣 Đã thu cần câu.');
+            updateFishButtonUI();
+        }
+
+        function selectRandomShanHaiFish() {
+            const rod = RODS.find(r => r.id === state.equippedRod) || RODS[0];
+            const bait = BAITS.find(b => b.id === state.equippedBait) || BAITS[0];
+            const luckMultiplier = rod.rareBonus * bait.rareMult;
+
+            // Filter fish available in current realm or 'any'
+            const pool = SHAN_HAI_FISH.filter(f => f.realm === 'any' || f.realm === state.currentRealm);
+
+            // Calculate weighted probabilities
+            const weightedPool = pool.map(fish => {
+                const rarityInfo = RARITIES[fish.rarity];
+                let w = rarityInfo.weight;
+                if (fish.rarity !== 'COMMON') {
+                    w *= luckMultiplier;
+                }
+                return { fish, weight: w };
+            });
+
+            const totalWeight = weightedPool.reduce((sum, item) => sum + item.weight, 0);
+            let roll = Math.random() * totalWeight;
+            for (const entry of weightedPool) {
+                if (roll < entry.weight) return entry.fish;
+                roll -= entry.weight;
+            }
+            return pool[0];
+        }
+
+        function launchFishingMinigame() {
+            const chosenFish = selectRandomShanHaiFish();
+            const rod = RODS.find(r => r.id === state.equippedRod) || RODS[0];
+            const rarityObj = RARITIES[chosenFish.rarity];
+
+            player.fishingState = 'minigame';
+            minigame.active = true;
+            minigame.targetFish = chosenFish;
+            minigame.progress = 42; // Generous starting progress
+            minigame.zoneWidth = rod.zoneWidth;
+            minigame.zonePos = 22;
+            minigame.zoneVel = 0;
+            minigame.fishPos = 32;
+            minigame.fishTarget = 55;
+            minigame.holdingReel = false;
+
+            // Update Minigame Header UI
+            const badge = document.getElementById('mini-fish-rarity-badge');
+            badge.textContent = rarityObj.name;
+            badge.className = `text-xs font-extrabold px-2 py-0.5 rounded border ${rarityObj.css}`;
+            document.getElementById('mini-fish-hint').textContent = `Bóng dáng: ${chosenFish.name}`;
+
+            document.getElementById('fishing-minigame').classList.remove('hidden');
+            updateFishButtonUI();
+        }
+
+        function updateFishingLogic() {
+            if (player.fishingState === 'waiting') {
+                player.waitTimer--;
+                if (player.waitTimer <= 0) {
+                    player.fishingState = 'bite';
+                    player.biteTimer = 150; // Auto-open or give plenty of time
+                    SoundFX.bite();
+                    updateFishButtonUI();
+                    // Automatically enter the minigame after a brief 0.35s alert so players don't even miss the bite!
+                    setTimeout(() => {
+                        if (player.fishingState === 'bite') {
+                            launchFishingMinigame();
+                        }
+                    }, 360);
+                }
+            } else if (player.fishingState === 'minigame' && minigame.active) {
+                const rod = RODS.find(r => r.id === state.equippedRod) || RODS[0];
+                const rarityObj = RARITIES[minigame.targetFish.rarity];
+
+                // 1. Move Player Green Catch Zone (Smooth & Easy to control)
+                if (minigame.holdingReel) {
+                    minigame.zoneVel += 0.22;
+                } else {
+                    minigame.zoneVel -= 0.20;
+                }
+                minigame.zoneVel *= 0.84; // Damping so it never flies out of control
+                minigame.zonePos += minigame.zoneVel;
+
+                const maxZoneLeft = 96 - minigame.zoneWidth;
+                if (minigame.zonePos < 2) {
+                    minigame.zonePos = 2;
+                    minigame.zoneVel = 0;
+                }
+                if (minigame.zonePos > maxZoneLeft) {
+                    minigame.zonePos = maxZoneLeft;
+                    minigame.zoneVel = 0;
+                }
+
+                // 2. Move Fish Marker smoothly
+                minigame.fishTimer--;
+                if (minigame.fishTimer <= 0) {
+                    minigame.fishTarget = 10 + Math.random() * 76;
+                    minigame.fishTimer = 45 + Math.random() * 55;
+                }
+                const diff = minigame.fishTarget - minigame.fishPos;
+                minigame.fishPos += Math.sign(diff) * Math.min(Math.abs(diff) * 0.04, 0.55 * rarityObj.speed);
+
+                // 3. Check overlap between Green Catch Zone and Fish Marker
+                const fishCenter = minigame.fishPos + 4;
+                const insideZone = fishCenter >= (minigame.zonePos - 4) &&
+                                   fishCenter <= (minigame.zonePos + minigame.zoneWidth + 4);
+
+                const zoneEl = document.getElementById('mini-catch-zone');
+                if (insideZone) {
+                    // Fill progress quickly!
+                    minigame.progress += 0.62 * rod.reelSpeed;
+                    zoneEl.classList.replace('border-amber-400', 'border-emerald-300');
+                } else {
+                    // Very gentle decay so it's never frustrating
+                    minigame.progress = Math.max(10, minigame.progress - 0.16);
+                }
+
+                // Update DOM elements
+                zoneEl.style.left = `${minigame.zonePos}%`;
+                zoneEl.style.width = `${minigame.zoneWidth}%`;
+                document.getElementById('mini-fish-marker').style.left = `${minigame.fishPos}%`;
+
+                const clampedPct = Math.min(100, Math.round(minigame.progress));
+                document.getElementById('mini-progress-bar').style.width = `${clampedPct}%`;
+                document.getElementById('mini-progress-pct').textContent = `${clampedPct}%`;
+
+                // 4. Check Win Condition
+                if (minigame.progress >= 100) {
+                    completeCatchSuccess(minigame.targetFish);
+                }
+            }
+        }
+
+        function completeCatchSuccess(fishData) {
+            minigame.active = false;
+            player.fishingState = 'idle';
+            document.getElementById('fishing-minigame').classList.add('hidden');
+            updateFishButtonUI();
+
+            // Deduct 1 bait if non-infinite
+            const baitObj = BAITS.find(b => b.id === state.equippedBait);
+            if (baitObj && !baitObj.infinite && state.baitCounts[baitObj.id] > 0) {
+                state.baitCounts[baitObj.id]--;
+            }
+
+            // Roll random fish size & calculate final price
+            const size = Math.round(fishData.minSize + Math.random() * (fishData.maxSize - fishData.minSize));
+            const sizeMultiplier = 0.85 + ((size - fishData.minSize) / (fishData.maxSize - fishData.minSize)) * 0.5;
+            const finalPrice = Math.round(fishData.basePrice * sizeMultiplier);
+
+            const caughtItem = {
+                uid: Date.now() + Math.random(),
+                id: fishData.id,
+                name: fishData.name,
+                rarity: fishData.rarity,
+                size,
+                price: finalPrice
+            };
+
+            state.bag.push(caughtItem);
+            state.lastCaughtFish = caughtItem;
+
+            // Update Bestiary
+            if (!state.bestiary[fishData.id]) {
+                state.bestiary[fishData.id] = { count: 1, maxSize: size };
+            } else {
+                state.bestiary[fishData.id].count++;
+                if (size > state.bestiary[fishData.id].maxSize) {
+                    state.bestiary[fishData.id].maxSize = size;
+                }
+            }
+
+            // Grant EXP & Check Level Up
+            addPlayerExp(fishData.exp);
+            SoundFX.catchSuccess();
+            saveGame();
+            updateHUD();
+
+            // Populate & Show Catch Celebration Modal
+            const rarityInfo = RARITIES[fishData.rarity];
+            document.getElementById('catch-fish-name').textContent = fishData.name;
+            const rarityEl = document.getElementById('catch-fish-rarity');
+            rarityEl.textContent = rarityInfo.name;
+            rarityEl.className = `text-xs font-bold px-2.5 py-0.5 rounded border ${rarityInfo.css}`;
+            document.getElementById('catch-fish-size').textContent = `Kích thước: ${size} cm`;
+            document.getElementById('catch-fish-lore').textContent = `"${fishData.lore}"`;
+            document.getElementById('catch-fish-exp').textContent = fishData.exp;
+            document.getElementById('catch-fish-price').textContent = finalPrice;
+            document.getElementById('catch-QuickSell-val').textContent = finalPrice;
+
+            // Draw caught fish onto preview canvas
+            const prevCanvas = document.getElementById('catchPreviewCanvas');
+            const pCtx = prevCanvas.getContext('2d');
+            pCtx.clearRect(0, 0, prevCanvas.width, prevCanvas.height);
+            drawMythicalFishSprite(pCtx, fishData, 60, 42, 2.2, 0);
+
+            openModal('catchModal');
+        }
+
+        function addPlayerExp(amount) {
+            state.exp += amount;
+            let leveledUp = false;
+            while (state.exp >= state.expToNext) {
+                state.exp -= state.expToNext;
+                state.level++;
+                state.expToNext = Math.round(100 * Math.pow(1.35, state.level - 1));
+                leveledUp = true;
+            }
+            if (leveledUp) {
+                setTimeout(() => {
+                    SoundFX.levelUp();
+                    showToast(`🎉 ĐỘT PHÁ CẢNH GIỚI! Bạn đã đạt Cấp ${state.level}!`);
+                }, 400);
+            }
+        }
+
+        function sellLastCaughtFish() {
+            if (!state.lastCaughtFish) return;
+            const idx = state.bag.findIndex(item => item.uid === state.lastCaughtFish.uid);
+            if (idx !== -1) {
+                const sold = state.bag.splice(idx, 1)[0];
+                state.gold += sold.price;
+                SoundFX.coin();
+                showToast(`💰 Đã bán ${sold.name} nhận +${sold.price} Linh Thạch!`);
+                state.lastCaughtFish = null;
+                saveGame();
+                updateHUD();
+            }
+            closeModal('catchModal');
+        }
+
+        /* ============================================================================
+         * 8. MODALS, MERCHANT SHOP, BAG & REALM SELECTION
+         * ============================================================================ */
+        function updateHUD() {
+            document.getElementById('hud-level-badge').textContent = `Lv.${state.level}`;
+            const titleIdx = Math.min(LEVEL_TITLES.length - 1, state.level - 1);
+            document.getElementById('hud-title').textContent = LEVEL_TITLES[titleIdx];
+            document.getElementById('hud-gold').innerHTML = `<i class="fa-solid fa-coins text-xs"></i> <span>${state.gold}</span>`;
+
+            const expPct = Math.min(100, Math.round((state.exp / state.expToNext) * 100));
+            document.getElementById('hud-exp-bar').style.width = `${expPct}%`;
+            document.getElementById('hud-exp-text').textContent = `${state.exp} / ${state.expToNext} EXP`;
+
+            const rod = RODS.find(r => r.id === state.equippedRod) || RODS[0];
+            document.getElementById('hud-rod-name').textContent = `🎣 ${rod.name}`;
+
+            const bait = BAITS.find(b => b.id === state.equippedBait) || BAITS[0];
+            const countStr = bait.infinite ? '∞' : (state.baitCounts[bait.id] || 0);
+            document.getElementById('hud-bait-count').textContent = `${bait.icon} ${bait.name} (${countStr})`;
+
+            const realm = REALMS.find(r => r.id === state.currentRealm) || REALMS[0];
+            document.getElementById('hud-realm-name').textContent = realm.name;
+
+            const unlockedCount = Object.keys(state.bestiary).length;
+            document.getElementById('hud-bestiary-count').textContent = `${unlockedCount}/${SHAN_HAI_FISH.length}`;
+            document.getElementById('badge-bag-count').textContent = state.bag.length;
+        }
+
+        function updateFishButtonUI() {
+            const label = document.getElementById('btn-fish-label');
+            if (player.fishingState === 'idle') {
+                label.textContent = 'QUĂNG CẦN';
+            } else if (player.fishingState === 'waiting') {
+                label.textContent = 'ĐANG CHỜ CÁ...';
+            } else if (player.fishingState === 'bite') {
+                label.textContent = 'GIẬT CẦN NGAY!';
+            } else {
+                label.textContent = 'ĐANG KÉO CÁ';
+            }
+        }
+
+        function openModal(id) {
+            if (id === 'shopModal') renderShopModal();
+            if (id === 'bagModal') renderBagModal();
+            if (id === 'bestiaryModal') renderBestiaryModal();
+            if (id === 'realmModal') renderRealmModal();
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function switchShopTab(tab) {
+            const rodsContainer = document.getElementById('shop-content-rods');
+            const baitsContainer = document.getElementById('shop-content-baits');
+            const btnRods = document.getElementById('tab-btn-rods');
+            const btnBaits = document.getElementById('tab-btn-baits');
+
+            if (tab === 'rods') {
+                rodsContainer.classList.remove('hidden');
+                baitsContainer.classList.add('hidden');
+                btnRods.className = 'px-4 py-2 text-xs sm:text-sm font-bold rounded-t-lg bg-amber-600 text-slate-950';
+                btnBaits.className = 'px-4 py-2 text-xs sm:text-sm font-bold rounded-t-lg bg-slate-800 text-slate-300';
+            } else {
+                rodsContainer.classList.add('hidden');
+                baitsContainer.classList.remove('hidden');
+                btnBaits.className = 'px-4 py-2 text-xs sm:text-sm font-bold rounded-t-lg bg-amber-600 text-slate-950';
+                btnRods.className = 'px-4 py-2 text-xs sm:text-sm font-bold rounded-t-lg bg-slate-800 text-slate-300';
+            }
+        }
+
+        function renderShopModal() {
+            document.getElementById('shop-gold-display').textContent = state.gold;
+            const totalBagVal = state.bag.reduce((s, item) => s + item.price, 0);
+            document.getElementById('shop-sell-all-val').textContent = totalBagVal;
+
+            // Render Rods
+            const rodsEl = document.getElementById('shop-content-rods');
+            rodsEl.innerHTML = RODS.map(rod => {
+                const isOwned = state.ownedRods.includes(rod.id);
+                const isEquipped = state.equippedRod === rod.id;
+                let actionBtn = '';
+                if (isEquipped) {
+                    actionBtn = `<button disabled class="pixel-btn px-3 py-1.5 bg-emerald-800 text-emerald-200 text-xs font-bold opacity-80">Đang Trang Bị</button>`;
+                } else if (isOwned) {
+                    actionBtn = `<button onclick="buyOrEquipRod('${rod.id}')" class="pixel-btn px-3 py-1.5 bg-teal-500 text-slate-950 text-xs font-extrabold">Trang Bị</button>`;
+                } else {
+                    actionBtn = `<button onclick="buyOrEquipRod('${rod.id}')" class="pixel-btn px-3 py-1.5 bg-amber-500 text-slate-950 text-xs font-extrabold">Mua (${rod.price} 🪙)</button>`;
+                }
+
+                return `
+                    <div class="p-3 rounded-lg bg-slate-900/90 border-2 border-slate-700 flex flex-col justify-between gap-2">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sm" style="color:${rod.color}">🎣 ${rod.name}</span>
+                                <span class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-amber-300">May mắn x${rod.rareBonus}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">${rod.desc}</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
+                            <span class="text-emerald-400 font-semibold">Độ rộng vùng câu: ${rod.zoneWidth}%</span>
+                            ${actionBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Render Baits
+            const baitsEl = document.getElementById('shop-content-baits');
+            baitsEl.innerHTML = BAITS.map(bait => {
+                const count = bait.infinite ? '∞' : (state.baitCounts[bait.id] || 0);
+                const isEquipped = state.equippedBait === bait.id;
+                return `
+                    <div class="p-3 rounded-lg bg-slate-900/90 border-2 border-slate-700 flex flex-col justify-between gap-2">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sm text-amber-200">${bait.icon} ${bait.name}</span>
+                                <span class="text-xs text-cyan-300 font-bold">Đang có: ${count}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">${bait.desc}</p>
+                        </div>
+                        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                            ${!bait.infinite ? `<button onclick="buyBait('${bait.id}', 5)" class="pixel-btn px-2.5 py-1.5 bg-amber-500 text-slate-950 text-xs font-extrabold">Mua x5 (${bait.price * 5} 🪙)</button>` : ''}
+                            <button onclick="equipBait('${bait.id}')" class="pixel-btn px-3 py-1.5 ${isEquipped ? 'bg-emerald-800 text-emerald-200' : 'bg-teal-500 text-slate-950'} text-xs font-extrabold">
+                                ${isEquipped ? 'Đang Dùng' : 'Chọn Mồi'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function buyOrEquipRod(rodId) {
+            const rod = RODS.find(r => r.id === rodId);
+            if (!rod) return;
+
+            if (state.ownedRods.includes(rodId)) {
+                state.equippedRod = rodId;
+                SoundFX.coin();
+                showToast(`🎣 Đã trang bị ${rod.name}!`);
+            } else {
+                if (state.gold < rod.price) {
+                    showToast('⚠️ Không đủ Linh Thạch! Hãy câu thêm cá đem bán cho Lão Ngư Ông.');
+                    return;
+                }
+                state.gold -= rod.price;
+                state.ownedRods.push(rodId);
+                state.equippedRod = rodId;
+                SoundFX.levelUp();
+                showToast(`✨ Mua thành công thần khí ${rod.name}!`);
+            }
+            saveGame();
+            updateHUD();
+            renderShopModal();
+        }
+
+        function buyBait(baitId, qty) {
+            const bait = BAITS.find(b => b.id === baitId);
+            if (!bait) return;
+            const cost = bait.price * qty;
+            if (state.gold < cost) {
+                showToast('⚠️ Không đủ Linh Thạch để mua mồi!');
+                return;
+            }
+            state.gold -= cost;
+            state.baitCounts[baitId] = (state.baitCounts[baitId] || 0) + qty;
+            state.equippedBait = baitId;
+            SoundFX.coin();
+            showToast(`🪱 Đã mua +${qty} ${bait.name}!`);
+            saveGame();
+            updateHUD();
+            renderShopModal();
+        }
+
+        function equipBait(baitId) {
+            const bait = BAITS.find(b => b.id === baitId);
+            if (!bait) return;
+            if (!bait.infinite && (state.baitCounts[baitId] || 0) <= 0) {
+                showToast('⚠️ Bạn đã hết loại mồi này, hãy mua thêm tại tiệm Lão Ngư Ông!');
+                return;
+            }
+            state.equippedBait = baitId;
+            showToast(`🪱 Đã đổi sang ${bait.name}`);
+            saveGame();
+            updateHUD();
+            renderShopModal();
+        }
+
+        function cycleBait() {
+            const idx = BAITS.findIndex(b => b.id === state.equippedBait);
+            const nextBait = BAITS[(idx + 1) % BAITS.length];
+            if (!nextBait.infinite && (state.baitCounts[nextBait.id] || 0) <= 0) {
+                state.equippedBait = 'bait_basic';
+            } else {
+                state.equippedBait = nextBait.id;
+            }
+            const active = BAITS.find(b => b.id === state.equippedBait);
+            showToast(`${active.icon} Đang dùng: ${active.name}`);
+            saveGame();
+            updateHUD();
+        }
+
+        function renderBagModal() {
+            const container = document.getElementById('bag-items-container');
+            const totalVal = state.bag.reduce((s, item) => s + item.price, 0);
+            document.getElementById('bag-sell-all-val').textContent = totalVal;
+
+            if (state.bag.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-400">
+                        <div class="text-4xl mb-2">🧺</div>
+                        <p class="text-sm font-bold">Giỏ cá của bạn đang trống.</p>
+                        <p class="text-xs mt-1">Hãy ra cầu gỗ nhấn QUĂNG CẦN để thu phục linh thú Sơn Hải Kinh!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = state.bag.map(item => {
+                const rarityInfo = RARITIES[item.rarity];
+                return `
+                    <div class="p-3 rounded-lg bg-slate-900/90 border border-slate-700 flex items-center justify-between gap-2">
+                        <div>
+                            <div class="font-bold text-sm text-amber-200">${item.name}</div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${rarityInfo.css}">${rarityInfo.name}</span>
+                                <span class="text-xs text-slate-400">${item.size} cm</span>
+                            </div>
+                        </div>
+                        <button onclick="sellSingleFish(${item.uid})" class="pixel-btn bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-extrabold shrink-0">
+                            Bán +${item.price} 🪙
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function sellSingleFish(uid) {
+            const idx = state.bag.findIndex(i => i.uid === uid);
+            if (idx === -1) return;
+            const sold = state.bag.splice(idx, 1)[0];
+            state.gold += sold.price;
+            SoundFX.coin();
+            saveGame();
+            updateHUD();
+            renderBagModal();
+        }
+
+        function sellAllFish() {
+            if (state.bag.length === 0) {
+                showToast('🧺 Giỏ cá đang trống!');
+                return;
+            }
+            const total = state.bag.reduce((s, item) => s + item.price, 0);
+            const count = state.bag.length;
+            state.bag = [];
+            state.gold += total;
+            SoundFX.coin();
+            showToast(`💰 Đã bán ${count} linh ngư thu về +${total} Linh Thạch!`);
+            saveGame();
+            updateHUD();
+            renderBagModal();
+            renderShopModal();
+        }
+
+        function renderBestiaryModal() {
+            const grid = document.getElementById('bestiary-grid');
+            grid.innerHTML = SHAN_HAI_FISH.map(fish => {
+                const record = state.bestiary[fish.id];
+                const rarityInfo = RARITIES[fish.rarity];
+                const realmObj = REALMS.find(r => r.id === fish.realm);
+                const realmName = realmObj ? realmObj.name : 'Tứ Hải (Mọi Vùng Biển)';
+
+                if (!record) {
+                    return `
+                        <div class="p-3 rounded-lg bg-slate-950/80 border border-slate-800 opacity-65 flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-sm text-slate-500">??? (Chưa Thuần Hóa)</span>
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded border ${rarityInfo.css}">${rarityInfo.name}</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-2">📍 Xuất hiện: ${realmName}</p>
+                            </div>
+                            <p class="text-[11px] text-slate-600 italic mt-2">Hãy đến vùng biển tương ứng câu để mở khóa ghi chép Sơn Hải Kinh.</p>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="p-3 rounded-lg bg-slate-900/95 border-2 border-amber-500/40 flex flex-col justify-between gap-2">
+                        <div>
+                            <div class="flex justify-between items-start gap-1">
+                                <span class="font-bold text-sm text-amber-300">${fish.name}</span>
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${rarityInfo.css}">${rarityInfo.name}</span>
+                            </div>
+                            <div class="text-[11px] text-cyan-300 mt-1">
+                                Đã câu: <b>${record.count}</b> lần • Kỷ lục: <b>${record.maxSize} cm</b>
+                            </div>
+                            <p class="text-xs text-slate-300 italic mt-2 leading-relaxed">"${fish.lore}"</p>
+                        </div>
+                        <div class="text-[11px] text-slate-400 border-t border-slate-800 pt-1.5 flex justify-between">
+                            <span>📍 ${realmName}</span>
+                            <span class="text-yellow-400">🪙 ~${fish.basePrice}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderRealmModal() {
+            const list = document.getElementById('realm-list');
+            list.innerHTML = REALMS.map(realm => {
+                const unlocked = state.level >= realm.reqLevel;
+                const isCurrent = state.currentRealm === realm.id;
+                return `
+                    <div class="p-3.5 rounded-lg bg-slate-900/90 border-2 ${isCurrent ? 'border-amber-400' : 'border-slate-700'} flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-bold text-base text-amber-300">${realm.name}</h4>
+                                <span class="text-xs px-2 py-0.5 rounded ${unlocked ? 'bg-emerald-950 text-emerald-300 border border-emerald-600' : 'bg-rose-950 text-rose-300 border border-rose-700'} font-bold">
+                                    Yêu cầu Lv.${realm.reqLevel}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">${realm.desc}</p>
+                        </div>
+                        <button onclick="travelToRealm('${realm.id}')" 
+                            class="pixel-btn w-full py-2 text-xs font-extrabold ${isCurrent ? 'bg-slate-700 text-slate-300' : unlocked ? 'bg-indigo-500 hover:bg-indigo-400 text-slate-950' : 'bg-slate-800 text-slate-500'}">
+                            ${isCurrent ? '📍 Đang Ở Đây' : unlocked ? '⛵ Khởi Hành Tới Đây' : `🔒 Mở khóa ở Cấp ${realm.reqLevel}`}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function travelToRealm(realmId) {
+            const realm = REALMS.find(r => r.id === realmId);
+            if (!realm) return;
+            if (state.level < realm.reqLevel) {
+                showToast(`🔒 Cần đạt Cấp ${realm.reqLevel} để tiến vào ${realm.name}!`);
+                return;
+            }
+            cancelFishing(true);
+            state.currentRealm = realmId;
+            SoundFX.splash();
+            showToast(`⛵ Đã cập bến ${realm.name}!`);
+            saveGame();
+            updateHUD();
+            closeModal('realmModal');
+        }
+
+        /* ============================================================================
+         * 9. INPUT LISTENERS (KEYBOARD + TOUCH D-PAD + REEL BUTTON)
+         * ============================================================================ */
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'pixel-box px-3 py-2 bg-slate-900/95 border-amber-400 text-amber-200 text-xs font-bold shadow-lg transition-opacity duration-300';
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        function setupInputHandlers() {
+            // Keyboard Controls
+            window.addEventListener('keydown', (e) => {
+                const code = e.code;
+                if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
+                if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
+                if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
+                if (code === 'ArrowDown' || code === 'KeyS') keys.down = true;
+
+                if (code === 'Space') {
+                    e.preventDefault();
+                    if (player.fishingState === 'minigame') {
+                        minigame.holdingReel = true;
+                    } else {
+                        handlePrimaryFishAction();
+                    }
+                }
+                if (code === 'KeyE') {
+                    const distBoat = Math.hypot(player.x - realmBoat.x, player.y - realmBoat.y);
+                    if (distBoat < 38) openModal('realmModal');
+                    else openModal('shopModal');
+                }
+                if (code === 'KeyB') openModal('bagModal');
+                if (code === 'KeyQ') cycleBait();
+            });
+
+            window.addEventListener('keyup', (e) => {
+                const code = e.code;
+                if (code === 'ArrowLeft' || code === 'KeyA') keys.left = false;
+                if (code === 'ArrowRight' || code === 'KeyD') keys.right = false;
+                if (code === 'ArrowUp' || code === 'KeyW') keys.up = false;
+                if (code === 'ArrowDown' || code === 'KeyS') keys.down = false;
+                if (code === 'Space') minigame.holdingReel = false;
+            });
+
+            // On-Screen D-Pad Buttons (Mouse + Touch)
+            document.querySelectorAll('.dpad-btn').forEach(btn => {
+                const dir = btn.dataset.dir;
+                const startMove = (e) => {
+                    e.preventDefault();
+                    keys[dir] = true;
+                    btn.classList.add('active-press');
+                };
+                const stopMove = (e) => {
+                    e.preventDefault();
+                    keys[dir] = false;
+                    btn.classList.remove('active-press');
+                };
+                btn.addEventListener('mousedown', startMove);
+                btn.addEventListener('mouseup', stopMove);
+                btn.addEventListener('mouseleave', stopMove);
+                btn.addEventListener('touchstart', startMove, { passive: false });
+                btn.addEventListener('touchend', stopMove, { passive: false });
+                btn.addEventListener('touchcancel', stopMove, { passive: false });
+            });
+
+            // Minigame Hold-to-Reel Button (Mouse + Touch)
+            const reelBtn = document.getElementById('btn-reel-hold');
+            const startReel = (e) => {
+                e.preventDefault();
+                minigame.holdingReel = true;
+                reelBtn.classList.add('active-press');
+            };
+            const stopReel = (e) => {
+                e.preventDefault();
+                minigame.holdingReel = false;
+                reelBtn.classList.remove('active-press');
+            };
+            reelBtn.addEventListener('mousedown', startReel);
+            window.addEventListener('mouseup', stopReel);
+            reelBtn.addEventListener('touchstart', startReel, { passive: false });
+            reelBtn.addEventListener('touchend', stopReel, { passive: false });
+
+            // Direct Canvas Click to interact with NPC Merchant or Boat
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = ((e.clientX - rect.left) / rect.width) * VIEW_W;
+                const clickY = ((e.clientY - rect.top) / rect.height) * VIEW_H;
+
+                if (Math.hypot(clickX - npcMerchant.x, clickY - npcMerchant.y) < 28) {
+                    openModal('shopModal');
+                } else if (Math.hypot(clickX - realmBoat.x, clickY - realmBoat.y) < 28) {
+                    openModal('realmModal');
+                }
+            });
+        }
+
+        /* ============================================================================
+         * 10. MAIN GAME LOOP & INITIALIZATION
+         * ============================================================================ */
+        function gameLoop(timestamp) {
+            updatePlayerMovement();
+            updateFishingLogic();
+            renderWorld(timestamp);
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            loadGame();
+            initEnvironmentParticles();
+            setupInputHandlers();
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
